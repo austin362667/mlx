@@ -659,6 +659,18 @@ class MLX_API Compiled : public Primitive {
     return kernel_lib_;
   }
 
+  const std::vector<array>& inputs() const {
+    return inputs_;
+  }
+
+  const std::vector<array>& tape() const {
+    return tape_;
+  }
+
+  const std::unordered_set<uintptr_t>& constant_ids() const {
+    return constant_ids_;
+  }
+
  private:
   const std::vector<array> inputs_;
   const std::vector<array> outputs_;
@@ -668,6 +680,23 @@ class MLX_API Compiled : public Primitive {
 
   mutable std::string name_;
   std::string kernel_lib_;
+};
+
+class MLX_API CompiledReduce final : public Compiled {
+ public:
+  explicit CompiledReduce(
+      Stream stream,
+      std::vector<array> inputs,
+      std::vector<array> outputs,
+      std::vector<array> tape,
+      std::unordered_set<uintptr_t> constant_ids);
+
+  void eval_cpu(const std::vector<array>& inputs, std::vector<array>& outputs)
+      override;
+  void eval_gpu(const std::vector<array>& inputs, std::vector<array>& outputs)
+      override;
+
+  std::vector<Shape> output_shapes(const std::vector<array>& inputs) override;
 };
 
 class Concatenate : public UnaryPrimitive {
@@ -975,9 +1004,9 @@ class Equal : public UnaryPrimitive {
 
   DEFINE_VMAP()
   DEFINE_GRADS()
+  DEFINE_DEFAULT_IS_EQUIVALENT()
   DEFINE_INPUT_OUTPUT_SHAPE()
 
-  bool is_equivalent(const Primitive& other) const override;
   const char* name() const override {
     if (equal_nan_) {
       return "NaNEqual";
@@ -1325,9 +1354,9 @@ class Log : public UnaryPrimitive {
 
   DEFINE_VMAP()
   DEFINE_GRADS()
+  DEFINE_DEFAULT_IS_EQUIVALENT()
   DEFINE_INPUT_OUTPUT_SHAPE()
 
-  bool is_equivalent(const Primitive& other) const override;
   Base state() const {
     return base_;
   };
@@ -1888,7 +1917,6 @@ class Scan : public UnaryPrimitive {
 
   DEFINE_VMAP()
   DEFINE_GRADS();
-  DEFINE_INPUT_OUTPUT_SHAPE()
 
   const char* name() const override {
     switch (reduce_type_) {
